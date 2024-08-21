@@ -217,13 +217,10 @@ class TimeSeriesAnalyzer:
             bool: True if the series is stationary, False otherwise.
         """
         pp_test = PhillipsPerron(self.processed_data[self.value_column])
-        result = pp_test.statistic, pp_test.pvalue, pp_test.critical_values
+        result = pp_test.stat, pp_test.pvalue
         print('====================================================')
         print('Phillips-Perron Test Statistic: %f' % result[0])
         print('p-value: %f' % result[1])
-        print('Critical values:')
-        for key, value in result[2].items():
-            print(f'\t{key}: {value}')
         print('====================================================')
         return result[1] <= significance_level
 
