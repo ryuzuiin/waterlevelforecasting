@@ -1,3 +1,6 @@
+import os
+import pandas as pd
+
 class CSVColumnExtractor:
     def __init__(self, directory, file_column_map, time_column):
         """
