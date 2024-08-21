@@ -2,7 +2,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Optional, List, Dict, Union, Tuple, Any
-from statsmodels.tsa.stattools import adfuller, kpss, acf, pacf, phillips_ouliaris
+from statsmodels.tsa.stattools import adfuller, kpss, acf, pacf
+from arch.unitroot import PhillipsPerron
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.stats.diagnostic import acorr_ljungbox
 from scipy.stats import shapiro, kstest, norm
@@ -215,15 +216,16 @@ class TimeSeriesAnalyzer:
         Returns:
             bool: True if the series is stationary, False otherwise.
         """
-        result = phillips_ouliaris.phillips_ouliaris(self.processed_data[self.value_column])
+        pp_test = PhillipsPerron(self.processed_data[self.value_column])
+        result = pp_test.statistic, pp_test.pvalue, pp_test.critical_values
         print('====================================================')
-        print('Phillips-Perron Test Statistic: %f' % result.stat)
-        print('p-value: %f' % result.pvalue)
+        print('Phillips-Perron Test Statistic: %f' % result[0])
+        print('p-value: %f' % result[1])
         print('Critical values:')
-        for key, value in result.critical_values.items():
+        for key, value in result[2].items():
             print(f'\t{key}: {value}')
         print('====================================================')
-        return result.pvalue <= significance_level
+        return result[1] <= significance_level
 
     def is_trend_stationary(self, significance_level: float = 0.05) -> bool:
         """
