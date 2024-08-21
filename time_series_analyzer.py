@@ -305,7 +305,7 @@ class TimeSeriesAnalyzer:
         self.data[self.value_column].plot(kind='hist')
         plt.title('Original Time Series Histogram')
 
-        self.make_stationarity()
+        #self.make_stationarity()
 
         plt.subplot(223)
         self.processed_data[self.value_column].plot(kind='line')
