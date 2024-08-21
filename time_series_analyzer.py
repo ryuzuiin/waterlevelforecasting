@@ -223,7 +223,7 @@ class TimeSeriesAnalyzer:
         print(f'Phillips-Perron Test Statistic: {stat}')
         print(f'p-value: {pvalue}')
         print('====================================================')
-        return result[1] <= significance_level
+        return pvalue <= significance_level
 
     def is_trend_stationary(self, significance_level: float = 0.05) -> bool:
         """
