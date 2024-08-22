@@ -2,11 +2,15 @@ from time_series_analyzer import TimeSeriesAnalyzer
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from statsmodels.tsa.seasonal import seasonal_decompose
+from statsmodels.tsa.seasonal import seasonal_decompose, MSTL
 from numba import jit
 import unittest
 import os
 import json
+
+from concurrent.futures import ProcePoolExecutor, as_completed
+import logging
+
 
 class AdvancedTimeSeriesAnalyzer(TimeSeriesAnalyzer):
     def __init__(self, *args, **kwargs):
@@ -34,6 +38,75 @@ class AdvancedTimeSeriesAnalyzer(TimeSeriesAnalyzer):
         
         plt.tight_layout()
         plt.show()
+
+    def perform_mstl_analysis(self, seasonal_periods=[144, 1008, 52560], seasonal_windows=[51, 401, 11001], iterate=2, n_jobs=None):
+        '''
+        Perform MSTL (Multiple Seasonal-Trend decomposition using LOESS) analysis
+        with paraleel processing using concurrent.futures for large datasets.
+
+        Args:
+            seasonal_periods (list): List of integers representing the seasonal periods
+                Default is [144, 1008, 52560] for daily, weekly, and yearly seasonality
+                with 10-minute intervals.
+            n_jobs (int): Number of jobs to run in parallel. If None, uses all available CPU cores.
+
+        Returns:
+            pd.DataFrame: The combined MSTL decomposition results.
+        '''
+        # Ensure the data is a pandas Series with a datetime index
+        ts = pd.Series(self.processed_data[self.value_column], index=self.processed_data.index)
+
+        # Function toperform MSTL on a chunk of data
+        def mstl_chunk(chunk):
+            mstl = MSTL(chunk, periods=seasonal_periods, windows=seasonal_windows, iterate=iterate)
+            return mstl.fit()
+
+        # Split the data into chunks
+        chunk_size = len(ts) // (n_jobs or 1)
+        chunks = [ts[i:i+chunk_size] for i in range(0, len(ts), chunk_size)]
+
+        # Perform parallel MSTL decomposition
+        results = []
+        with ProcessPoolExcutor(max_workers=n_jobs) as excutor:
+            future_to_chunk = {excutor.submit(mstl_chunk, chunk): i for i, chunk in enumerate(chunks)}
+            for future in as_comlete(future_to_chunk):
+                chunk_index = future_to_chunk[future]
+                try:
+                    result = future.result()
+                    result.append((chunk_index, result))
+                except Exception as exc:
+                    logging.error(f'MSTL processing generated an exception for chunk {chunk_index}: {exc}')
+
+        results.sort(key=lambda x:x[0])
+        combined_result = pd.concat([result[1].trend for _, result in results])
+        for i, period in enumerate(seasonal_periods):
+            seasonal = pd.concat([result[1].seasonal.iloc[:, i] for _, result in results])
+            combined_result = pd.concat([combined_result, seasonal], axis=1)
+        combined_result = pd.concat([combined_result, pd.concat([result[1].resid for _, result in results])], axis=1)
+
+        fig, axes = plt.subplots(len(seasonal_periods) + 3, 1, figsize=(15, 3*(len(seasonal_periods) + 3)))
+
+        ts.plot(ax=axes[0])
+        axes[0].set_title('Original Time Series')
+
+        combined_result.iloc[:, 0].plot(ax=axes[1])
+        axes[1].set_title('Trend')
+
+        for i, period in enumerate(seasonal_periods):
+            combined_result.iloc[:, i+1].plot(ax=axes[i+2])
+            axes[i+2].set_title(f'Seasonal (period={period}')
+
+        combined_result.iloc[:, -1].plot(ax=axes[-1])
+        axes[-1].set_title('Residuals')
+
+        plt.tight_layout()
+        plt.savefig(7mstl_decomposition.png')
+        plt.close()
+
+        logging.info('MSTL decomposition plot saved as mstl_decomposition.png')
+
+        return combined_result
+        
 
     @jit(nopython=True)
     def _fast_acf(self, x, nlags):
