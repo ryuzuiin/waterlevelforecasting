@@ -1,0 +1,3 @@
+1. analyzer file: 
+	input: date_column[str], value_columns[list], stl_period[int], stl_seasons[list], trend[int]
+	output: csv file of result[ dataframe] + plots[original data, ACF, PACF, trend, seasons, residuals, forecast]
